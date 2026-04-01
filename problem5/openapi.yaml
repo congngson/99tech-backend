@@ -1,0 +1,537 @@
+openapi: "3.0.3"
+info:
+  title: Problem 5 — Secure Resource CRUD API
+  version: "2.0.0"
+  description: |
+    A CRUD server with JWT authentication and RBAC.
+
+    **Authentication:** All endpoints (except login/refresh) require a Bearer JWT token.
+    1. Call `POST /api/auth/login` with `{"username":"root","password":"Root@123456"}`
+    2. Copy the `accessToken` from the response
+    3. Click **Authorize** (🔒) above and enter: `Bearer <accessToken>`
+
+servers:
+  - url: http://localhost:3005
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Login, logout, token refresh
+  - name: Users
+    description: User management (root only)
+  - name: Resources
+    description: CRUD on resources (all authenticated users)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/auth/login:
+    post:
+      summary: Login — get access token
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  example: root
+                password:
+                  type: string
+                  example: Root@123456
+      responses:
+        "200":
+          description: Login successful — copy `accessToken` and use in Authorize
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                        description: JWT access token (15 min TTL). Use in Authorize as "Bearer <token>"
+                      user:
+                        $ref: "#/components/schemas/UserPublic"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/refresh:
+    post:
+      summary: Refresh access token (uses HttpOnly cookie)
+      tags: [Auth]
+      security: []
+      responses:
+        "200":
+          description: New access token issued, refresh token rotated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/logout:
+    post:
+      summary: Logout — revoke refresh token
+      tags: [Auth]
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessage"
+
+  /api/auth/me:
+    get:
+      summary: Get current user
+      tags: [Auth]
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/UserPublic"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/users:
+    get:
+      summary: List all users (root only)
+      tags: [Users]
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserPublic"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      summary: Create user (root only)
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 50
+                  example: alice
+                password:
+                  type: string
+                  minLength: 8
+                  example: "Alice@123456"
+                role:
+                  type: string
+                  enum: [user, root]
+                  default: user
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: "#/components/schemas/UserPublic"
+        "409":
+          description: Username already taken
+
+  /api/users/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    patch:
+      summary: Update user (root only)
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  minLength: 8
+                role:
+                  type: string
+                  enum: [user, root]
+                is_active:
+                  type: boolean
+      responses:
+        "200":
+          description: User updated
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete user (root only, cannot delete root)
+      tags: [Users]
+      responses:
+        "200":
+          description: User deleted
+        "400":
+          description: Cannot delete root user
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/resources:
+    get:
+      summary: List resources
+      tags: [Resources]
+      description: Root sees all resources. Regular users see only their own.
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive, archived]
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Full-text search in name and description
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: Paginated resource list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      summary: Create resource
+      tags: [Resources]
+      description: Resource is automatically owned by the authenticated user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/resources/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+    get:
+      summary: Get resource by ID
+      tags: [Resources]
+      description: Root can access any. Users can only access their own.
+      responses:
+        "200":
+          description: Resource detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      summary: Update resource
+      tags: [Resources]
+      description: Root can update any. Users can only update their own.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      summary: Delete resource
+      tags: [Resources]
+      description: Root can delete any. Users can only delete their own.
+      responses:
+        "200":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Get token from POST /api/auth/login, then enter: Bearer <accessToken>"
+
+  schemas:
+    UserPublic:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        role:
+          type: string
+          enum: [root, user]
+        is_active:
+          type: integer
+          enum: [0, 1]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Resource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, archived]
+        created_by:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateBody:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "My Resource"
+        description:
+          type: string
+          maxLength: 2000
+          example: "A sample description"
+        status:
+          type: string
+          enum: [active, inactive, archived]
+          default: active
+
+    UpdateBody:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        status:
+          type: string
+          enum: [active, inactive, archived]
+
+    ResourceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: "#/components/schemas/Resource"
+
+    ListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Resource"
+            total:
+              type: integer
+            page:
+              type: integer
+            limit:
+              type: integer
+            pages:
+              type: integer
+
+    SuccessMessage:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid JWT token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+                example: "Missing or invalid Authorization header"
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+                example: "Forbidden: insufficient permissions"
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: string
+                example: "Not found"

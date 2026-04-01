@@ -1,0 +1,12 @@
+node_modules/
+dist/
+data/
+*.db
+.env
+.DS_Store
+*.log
+fly.toml
+
+# Showcase web — not for customer commits
+showcase/
+docker-compose.yml

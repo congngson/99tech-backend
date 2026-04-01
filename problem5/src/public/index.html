@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Problem 5 — Secure CRUD API</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    a { color: #3b82f6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Login Screen ── */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .login-card {
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 25px 50px rgba(0,0,0,.5);
+    }
+    .login-card h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: .25rem;
+      text-align: center;
+    }
+    .login-card .tagline {
+      text-align: center;
+      color: #64748b;
+      font-size: .8rem;
+      margin-bottom: 1.75rem;
+    }
+    .login-card label {
+      display: block;
+      color: #94a3b8;
+      font-size: .75rem;
+      font-weight: 600;
+      margin-bottom: .35rem;
+      margin-top: 1rem;
+    }
+    .login-card label:first-of-type { margin-top: 0; }
+    .login-card input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: .6rem .85rem;
+      font-size: .9rem;
+      outline: none;
+      font-family: inherit;
+      transition: border-color .15s;
+    }
+    .login-card input:focus { border-color: #3b82f6; }
+    #login-error {
+      display: none;
+      background: rgba(220,38,38,.15);
+      border: 1px solid rgba(220,38,38,.4);
+      color: #fca5a5;
+      border-radius: 8px;
+      padding: .6rem .85rem;
+      font-size: .8rem;
+      margin-top: 1rem;
+    }
+    #login-btn {
+      margin-top: 1.5rem;
+      width: 100%;
+      padding: .7rem;
+      background: #3b82f6;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    #login-btn:hover { background: #2563eb; }
+    #login-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ── Dashboard ── */
+    #dashboard { display: none; flex-direction: column; min-height: 100vh; }
+
+    /* Navbar */
+    .navbar {
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      padding: .75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .navbar-brand {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #f8fafc;
+    }
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+    .user-info {
+      color: #94a3b8;
+      font-size: .85rem;
+    }
+    .user-info strong { color: #e2e8f0; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid #334155;
+      padding: 0 1.5rem;
+      background: #1e293b;
+    }
+    .tab-btn {
+      padding: .75rem 1.25rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #64748b;
+      font-size: .875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+      margin-bottom: -1px;
+    }
+    .tab-btn:hover { color: #cbd5e1; }
+    .tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+
+    /* Main content */
+    .main { padding: 1.5rem; flex: 1; }
+
+    /* Tab panels */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .card-title {
+      font-size: .75rem;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: 1rem;
+    }
+
+    /* Form elements */
+    label {
+      display: block;
+      color: #94a3b8;
+      font-size: .75rem;
+      font-weight: 600;
+      margin-bottom: .3rem;
+      margin-top: .75rem;
+    }
+    label:first-of-type { margin-top: 0; }
+    input[type="text"],
+    input[type="password"],
+    input[type="search"],
+    select,
+    textarea {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: .5rem .75rem;
+      font-size: .875rem;
+      outline: none;
+      font-family: inherit;
+      transition: border-color .15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: #3b82f6; }
+    textarea { min-height: 72px; resize: vertical; }
+
+    /* Buttons */
+    .btn {
+      padding: .5rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-size: .875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, opacity .15s;
+      white-space: nowrap;
+    }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: #3b82f6; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #2563eb; }
+    .btn-secondary { background: #334155; color: #e2e8f0; }
+    .btn-secondary:hover:not(:disabled) { background: #475569; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-danger:hover:not(:disabled) { background: #b91c1c; }
+    .btn-warning { background: #d97706; color: #fff; }
+    .btn-warning:hover:not(:disabled) { background: #b45309; }
+    .btn-success { background: #059669; color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #047857; }
+    .btn-outline { background: transparent; border: 1px solid #334155; color: #94a3b8; }
+    .btn-outline:hover:not(:disabled) { background: #1e293b; color: #e2e8f0; }
+    .btn-sm { padding: .3rem .65rem; font-size: .75rem; }
+    .btn-logout { background: #334155; color: #94a3b8; font-size: .8rem; }
+    .btn-logout:hover { background: #475569; color: #e2e8f0; }
+
+    .form-actions { display: flex; gap: .5rem; margin-top: 1rem; flex-wrap: wrap; }
+
+    /* Resources layout */
+    .resources-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .sidebar { display: flex; flex-direction: column; gap: 1rem; }
+
+    /* Create Resource Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal-box {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 28px; width: 100%; max-width: 480px; position: relative;
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+    }
+    .modal-header h3 {
+      font-size: .9rem; font-weight: 700; color: #f8fafc; margin: 0;
+    }
+    .modal-close {
+      background: none; border: none; color: #94a3b8; font-size: 1.4rem;
+      cursor: pointer; padding: 0 4px; line-height: 1;
+    }
+    .modal-close:hover { color: #f1f5f9; }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+      align-items: flex-end;
+    }
+    .filter-bar input { flex: 2; min-width: 120px; }
+    .filter-bar select { flex: 1; min-width: 100px; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    thead th {
+      text-align: left;
+      padding: .5rem .75rem;
+      color: #64748b;
+      font-weight: 700;
+      border-bottom: 1px solid #334155;
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: .6rem .75rem;
+      border-bottom: 1px solid #0f172a;
+      vertical-align: middle;
+    }
+    tbody tr:hover td { background: rgba(255,255,255,.02); }
+    .td-name {
+      font-weight: 600;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .td-desc {
+      color: #94a3b8;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .td-date { color: #64748b; white-space: nowrap; }
+    .td-actions { white-space: nowrap; }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: .15rem .55rem;
+      border-radius: 4px;
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .badge-active   { background: #064e3b; color: #34d399; }
+    .badge-inactive { background: #451a03; color: #fbbf24; }
+    .badge-archived { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+    .badge-root     { background: #4c1d95; color: #c4b5fd; }
+    .badge-user     { background: #1e3a5f; color: #93c5fd; }
+    .badge-on       { background: #064e3b; color: #34d399; }
+    .badge-off      { background: #451a03; color: #fbbf24; }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      gap: .4rem;
+      margin-top: 1rem;
+      justify-content: flex-end;
+      align-items: center;
+      font-size: .8rem;
+      color: #64748b;
+    }
+    .pagination button {
+      background: #334155;
+      border: none;
+      color: #e2e8f0;
+      border-radius: 6px;
+      padding: .3rem .65rem;
+      cursor: pointer;
+      font-size: .8rem;
+      transition: background .15s;
+    }
+    .pagination button:hover:not(:disabled) { background: #475569; }
+    .pagination button:disabled { opacity: .4; cursor: default; }
+
+    /* Empty state */
+    .empty {
+      text-align: center;
+      color: #475569;
+      padding: 2.5rem 1rem;
+      font-size: .85rem;
+    }
+
+    /* User Modal (existing pattern with .open class) */
+    .user-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .user-modal-overlay.open { display: flex; }
+    .modal {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 25px 50px rgba(0,0,0,.6);
+    }
+    .modal-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 1.25rem;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: #065f46;
+      color: #fff;
+      border-radius: 10px;
+      padding: .7rem 1.1rem;
+      font-size: .85rem;
+      font-weight: 500;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s, transform .25s;
+      transform: translateY(6px);
+      z-index: 999;
+      max-width: 320px;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { background: #991b1b; }
+
+    /* Section header */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: .5rem;
+    }
+    .section-header h2 {
+      font-size: .75rem;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #334155;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      vertical-align: middle;
+      margin-right: .4rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ───────────── LOGIN SCREEN ───────────── -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>Problem 5 — Secure CRUD API</h1>
+    <p class="tagline">Sign in to continue · <a href="/docs" target="_blank">Swagger Docs</a></p>
+    <label for="li-username">Username</label>
+    <input type="text" id="li-username" placeholder="Enter username" autocomplete="username" />
+    <label for="li-password">Password</label>
+    <input type="password" id="li-password" placeholder="Enter password" autocomplete="current-password" />
+    <div id="login-error"></div>
+    <button id="login-btn" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
+<!-- ───────────── DASHBOARD ───────────── -->
+<div id="dashboard">
+  <!-- Navbar -->
+  <nav class="navbar">
+    <span class="navbar-brand">Problem 5 — Secure CRUD</span>
+    <div class="navbar-right">
+      <span class="user-info" id="nav-user"></span>
+      <button class="btn btn-logout" onclick="doLogout()">Logout</button>
+    </div>
+  </nav>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabs">
+    <button class="tab-btn active" data-tab="resources" onclick="switchTab('resources')">Resources</button>
+    <button class="tab-btn" data-tab="users" id="tab-users-btn" style="display:none" onclick="switchTab('users')">Users</button>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Resources Tab -->
+    <div class="tab-panel active" id="tab-resources">
+      <div class="resources-layout">
+        <!-- Edit Form (shown inline when editing) -->
+        <div class="card" id="edit-card" style="display:none">
+          <div class="card-title">Edit Resource</div>
+          <input type="hidden" id="e-id" />
+          <label>Name</label>
+          <input type="text" id="e-name" />
+          <label>Description</label>
+          <textarea id="e-desc"></textarea>
+          <label>Status</label>
+          <select id="e-status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="archived">Archived</option>
+          </select>
+          <div class="form-actions">
+            <button class="btn btn-primary" onclick="updateResource()">Save</button>
+            <button class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Resource List -->
+        <div class="card">
+          <div class="section-header">
+            <h2>Resources</h2>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" onclick="openCreateModal()">＋ New Resource</button>
+              <button class="btn btn-secondary btn-sm" onclick="exportResources('csv')">Export CSV</button>
+              <button class="btn btn-secondary btn-sm" onclick="exportResources('json')">Export JSON</button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <input type="search" id="f-q" placeholder="Search name / description…" oninput="debounceLoad()" />
+            <select id="f-status" onchange="resState.page=1;loadResources()">
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="archived">Archived</option>
+            </select>
+            <select id="f-sort" onchange="resState.page=1;loadResources()">
+              <option value="desc">Newest first</option>
+              <option value="asc">Oldest first</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="res-tbody"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="res-pagination"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users Tab (root only) -->
+    <div class="tab-panel" id="tab-users">
+      <div class="card">
+        <div class="section-header">
+          <h2>Users</h2>
+          <button class="btn btn-primary btn-sm" onclick="openCreateUserModal()">+ Create User</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── CREATE RESOURCE MODAL ───────────── -->
+<div id="create-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>New Resource</h3>
+      <button class="modal-close" onclick="closeCreateModal()">×</button>
+    </div>
+    <form id="create-form" onsubmit="submitCreate(event)">
+      <label>Name *</label>
+      <input type="text" id="c-name" placeholder="Resource name" />
+      <label>Description</label>
+      <textarea id="c-desc" placeholder="Optional description"></textarea>
+      <label>Status</label>
+      <select id="c-status">
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+        <option value="archived">Archived</option>
+      </select>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Create</button>
+        <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ───────────── CREATE USER MODAL ───────────── -->
+<div class="user-modal-overlay" id="create-user-modal">
+  <div class="modal">
+    <div class="modal-title">Create User</div>
+    <label>Username *</label>
+    <input type="text" id="cu-username" placeholder="letters, numbers, underscore" />
+    <label>Password *</label>
+    <input type="password" id="cu-password" placeholder="Min 8 characters" />
+    <label>Role</label>
+    <select id="cu-role">
+      <option value="user">User</option>
+      <option value="root">Root</option>
+    </select>
+    <div id="cu-error" style="display:none;color:#fca5a5;font-size:.8rem;margin-top:.75rem;"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="createUser()">Create</button>
+      <button class="btn btn-secondary" onclick="closeCreateUserModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let accessToken = null;
+  let currentUser = null;
+  const resState = { page: 1 };
+  let debTimer = null;
+  let currentStatus = '';
+  let currentQ = '';
+
+  // ── Utility ────────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function toast(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.className = 'toast'; }, 3000);
+  }
+
+  function fmtDate(s) {
+    if (!s) return '—';
+    return s.slice(0, 10);
+  }
+
+  // ── apiFetch with token refresh ────────────────────────────────────────────
+  async function apiFetch(url, options = {}) {
+    const res = await fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...options.headers,
+      },
+    });
+    if (res.status === 401 && url !== '/api/auth/login' && url !== '/api/auth/refresh') {
+      const rr = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+      if (rr.ok) {
+        const rd = await rr.json();
+        accessToken = rd.data.accessToken;
+        return apiFetch(url, options);
+      } else {
+        accessToken = null;
+        currentUser = null;
+        showLogin();
+        return res;
+      }
+    }
+    return res;
+  }
+
+  async function apiJson(url, options = {}) {
+    const res = await apiFetch(url, options);
+    const json = await res.json().catch(() => ({ success: false, error: 'Invalid response' }));
+    if (!json.success) throw new Error(json.error || 'Request failed');
+    return json.data;
+  }
+
+  // ── Auth ───────────────────────────────────────────────────────────────────
+  async function init() {
+    if (!accessToken) {
+      // Try refresh first (in case a refresh cookie exists from a previous session)
+      try {
+        const rr = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+        if (rr.ok) {
+          const rd = await rr.json();
+          accessToken = rd.data.accessToken;
+        }
+      } catch (_) {}
+    }
+    if (accessToken) {
+      try {
+        const data = await apiJson('/api/auth/me');
+        currentUser = data;
+        showDashboard();
+      } catch (_) {
+        showLogin();
+      }
+    } else {
+      showLogin();
+    }
+  }
+
+  async function doLogin() {
+    const username = document.getElementById('li-username').value.trim();
+    const password = document.getElementById('li-password').value;
+    const errEl = document.getElementById('login-error');
+    const btn = document.getElementById('login-btn');
+    errEl.style.display = 'none';
+    if (!username || !password) {
+      errEl.textContent = 'Username and password are required.';
+      errEl.style.display = 'block';
+      return;
+    }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Signing in…';
+    try {
+      const res = await apiFetch('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Login failed');
+      accessToken = json.data.accessToken;
+      currentUser = json.data.user;
+      document.getElementById('li-password').value = '';
+      showDashboard();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  }
+
+  async function doLogout() {
+    try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch (_) {}
+    accessToken = null;
+    currentUser = null;
+    showLogin();
+  }
+
+  // ── View switches ──────────────────────────────────────────────────────────
+  function showLogin() {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('li-username').focus();
+  }
+
+  function showDashboard() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'flex';
+
+    // Set nav user
+    const roleLabel = currentUser.role === 'root' ? 'root' : 'user';
+    document.getElementById('nav-user').innerHTML =
+      `<strong>&#128100; ${esc(currentUser.username)}</strong> <span class="badge badge-${roleLabel}">${roleLabel}</span>`;
+
+    // Show Users tab only for root
+    const usersTabBtn = document.getElementById('tab-users-btn');
+    if (currentUser.role === 'root') {
+      usersTabBtn.style.display = 'inline-block';
+    } else {
+      usersTabBtn.style.display = 'none';
+    }
+
+    switchTab('resources');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+    if (tab === 'resources') loadResources();
+    if (tab === 'users') loadUsers();
+  }
+
+  // ── Resources ──────────────────────────────────────────────────────────────
+  function debounceLoad() {
+    clearTimeout(debTimer);
+    debTimer = setTimeout(() => { resState.page = 1; loadResources(); }, 300);
+  }
+
+  async function loadResources() {
+    currentQ = document.getElementById('f-q').value;
+    currentStatus = document.getElementById('f-status').value;
+    const sort = document.getElementById('f-sort').value;
+    const qs = new URLSearchParams({ page: resState.page, limit: 10, sort });
+    if (currentQ) qs.set('q', currentQ);
+    if (currentStatus) qs.set('status', currentStatus);
+
+    try {
+      const data = await apiJson('/api/resources?' + qs);
+      renderResources(data);
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  function renderResources(data) {
+    const tbody = document.getElementById('res-tbody');
+    if (!data.items.length) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty">No resources found</div></td></tr>`;
+    } else {
+      tbody.innerHTML = data.items.map(r => `
+        <tr>
+          <td class="td-name" title="${esc(r.name)}">${esc(r.name)}</td>
+          <td class="td-desc" title="${esc(r.description)}">${esc(r.description) || '<span style="color:#475569">—</span>'}</td>
+          <td><span class="badge badge-${r.status}">${r.status}</span></td>
+          <td class="td-date">${fmtDate(r.created_at)}</td>
+          <td class="td-actions">
+            <div style="display:flex;gap:.3rem">
+              <button class="btn btn-sm btn-outline" onclick='startEdit(${JSON.stringify(r)})'>Edit</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteResource('${esc(r.id)}')">Delete</button>
+            </div>
+          </td>
+        </tr>`).join('');
+    }
+
+    // Pagination
+    const pag = document.getElementById('res-pagination');
+    if (data.pages <= 1) { pag.innerHTML = ''; return; }
+    pag.innerHTML = `
+      <button onclick="resState.page--;loadResources()" ${resState.page <= 1 ? 'disabled' : ''}>&#8249; Prev</button>
+      <span>Page ${resState.page} / ${data.pages}</span>
+      <button onclick="resState.page++;loadResources()" ${resState.page >= data.pages ? 'disabled' : ''}>Next &#8250;</button>
+    `;
+  }
+
+  function openCreateModal() {
+    document.getElementById('c-name').value = '';
+    document.getElementById('c-desc').value = '';
+    document.getElementById('c-status').value = 'active';
+    document.getElementById('create-modal').style.display = 'flex';
+    document.getElementById('c-name').focus();
+  }
+
+  function closeCreateModal() {
+    document.getElementById('create-modal').style.display = 'none';
+  }
+
+  async function submitCreate(e) {
+    e.preventDefault();
+    const name = document.getElementById('c-name').value.trim();
+    if (!name) { toast('Name is required', true); return; }
+    const body = {
+      name,
+      description: document.getElementById('c-desc').value.trim(),
+      status: document.getElementById('c-status').value,
+    };
+    try {
+      await apiJson('/api/resources', { method: 'POST', body: JSON.stringify(body) });
+      closeCreateModal();
+      toast('Resource created');
+      resState.page = 1;
+      loadResources();
+    } catch (e) { toast(e.message, true); }
+  }
+
+  async function exportResources(format) {
+    const params = new URLSearchParams({ limit: 1000, sort: 'desc' });
+    if (currentStatus) params.set('status', currentStatus);
+    if (currentQ) params.set('q', currentQ);
+
+    try {
+      const res = await apiFetch('/api/resources?' + params);
+      const data = await res.json();
+      const items = data.data.items;
+
+      if (format === 'csv') {
+        const headers = ['id', 'name', 'description', 'status', 'created_at', 'updated_at'];
+        const rows = items.map(r => headers.map(h => JSON.stringify(r[h] ?? '')).join(','));
+        const csv = [headers.join(','), ...rows].join('\n');
+        download('resources_export.csv', csv, 'text/csv');
+      } else {
+        download('resources_export.json', JSON.stringify(items, null, 2), 'application/json');
+      }
+    } catch (ex) { toast(ex.message, true); }
+  }
+
+  function download(filename, content, type) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], { type }));
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function startEdit(r) {
+    document.getElementById('e-id').value = r.id;
+    document.getElementById('e-name').value = r.name;
+    document.getElementById('e-desc').value = r.description || '';
+    document.getElementById('e-status').value = r.status;
+    document.getElementById('edit-card').style.display = 'block';
+    document.getElementById('edit-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function cancelEdit() {
+    document.getElementById('edit-card').style.display = 'none';
+  }
+
+  async function updateResource() {
+    const id = document.getElementById('e-id').value;
+    const name = document.getElementById('e-name').value.trim();
+    if (!name) { toast('Name is required', true); return; }
+    const body = {
+      name,
+      description: document.getElementById('e-desc').value.trim(),
+      status: document.getElementById('e-status').value,
+    };
+    try {
+      await apiJson('/api/resources/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+      cancelEdit();
+      toast('Resource updated');
+      loadResources();
+    } catch (e) { toast(e.message, true); }
+  }
+
+  async function deleteResource(id) {
+    if (!confirm('Delete this resource?')) return;
+    try {
+      await apiJson('/api/resources/' + id, { method: 'DELETE' });
+      toast('Resource deleted');
+      loadResources();
+    } catch (e) { toast(e.message, true); }
+  }
+
+  // ── Users ──────────────────────────────────────────────────────────────────
+  async function loadUsers() {
+    try {
+      const users = await apiJson('/api/users');
+      renderUsers(users);
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  function renderUsers(users) {
+    const tbody = document.getElementById('users-tbody');
+    if (!users.length) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty">No users found</div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = users.map(u => {
+      const isSelf = u.id === currentUser.id;
+      const isRoot = u.role === 'root';
+      const activeLabel = u.is_active ? 'Active' : 'Inactive';
+      const activeBadge = u.is_active ? 'badge-on' : 'badge-off';
+      const toggleLabel = u.is_active ? 'Deactivate' : 'Activate';
+      const toggleClass = u.is_active ? 'btn-warning' : 'btn-success';
+      return `
+        <tr>
+          <td style="font-weight:600">${esc(u.username)} ${isSelf ? '<span style="color:#64748b;font-size:.72rem">(you)</span>' : ''}</td>
+          <td><span class="badge badge-${u.role}">${u.role}</span></td>
+          <td><span class="badge ${activeBadge}">${activeLabel}</span></td>
+          <td class="td-date">${fmtDate(u.created_at)}</td>
+          <td>
+            <div style="display:flex;gap:.3rem;flex-wrap:wrap">
+              ${!isSelf ? `<button class="btn btn-sm ${toggleClass}" onclick="toggleUser('${esc(u.id)}',${!u.is_active})">${toggleLabel}</button>` : ''}
+              ${!isRoot ? `<button class="btn btn-sm btn-danger" onclick="deleteUser('${esc(u.id)}','${esc(u.username)}')">Delete</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  async function toggleUser(id, newActive) {
+    try {
+      await apiJson('/api/users/' + id, { method: 'PATCH', body: JSON.stringify({ is_active: newActive }) });
+      toast(newActive ? 'User activated' : 'User deactivated');
+      loadUsers();
+    } catch (e) { toast(e.message, true); }
+  }
+
+  async function deleteUser(id, username) {
+    if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+    try {
+      await apiJson('/api/users/' + id, { method: 'DELETE' });
+      toast('User deleted');
+      loadUsers();
+    } catch (e) { toast(e.message, true); }
+  }
+
+  function openCreateUserModal() {
+    document.getElementById('cu-username').value = '';
+    document.getElementById('cu-password').value = '';
+    document.getElementById('cu-role').value = 'user';
+    document.getElementById('cu-error').style.display = 'none';
+    document.getElementById('create-user-modal').classList.add('open');
+    document.getElementById('cu-username').focus();
+  }
+
+  function closeCreateUserModal() {
+    document.getElementById('create-user-modal').classList.remove('open');
+  }
+
+  async function createUser() {
+    const username = document.getElementById('cu-username').value.trim();
+    const password = document.getElementById('cu-password').value;
+    const role = document.getElementById('cu-role').value;
+    const errEl = document.getElementById('cu-error');
+    errEl.style.display = 'none';
+    if (!username || !password) {
+      errEl.textContent = 'Username and password are required.';
+      errEl.style.display = 'block';
+      return;
+    }
+    try {
+      await apiJson('/api/users', { method: 'POST', body: JSON.stringify({ username, password, role }) });
+      closeCreateUserModal();
+      toast('User created');
+      loadUsers();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    }
+  }
+
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') {
+      doLogin();
+    }
+    if (e.key === 'Escape') {
+      closeCreateModal();
+      closeCreateUserModal();
+      cancelEdit();
+    }
+  });
+
+  // Close modals on overlay click
+  document.getElementById('create-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeCreateModal();
+  });
+  document.getElementById('create-user-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeCreateUserModal();
+  });
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>
