@@ -26,41 +26,6 @@ Default credentials for Problem 5: `root` / `Root@123456`
 | [5](problem5/) | A Secure CRUD Server | Express API + JWT auth + frontend | 3005 |
 | [6](problem6/) | Live Scoreboard | System design document | — |
 
----
-
-## Quick Start (Docker)
-
-```bash
-git clone <repo>
-cd Backend-NodeJS
-
-docker compose up --build
-
-# Showcase:      http://localhost/
-# Problem 5 UI:  http://localhost/p5/
-# Problem 4 API: http://localhost:3004/
-# Problem 5 API: http://localhost:3005/
-# Swagger UI:    http://localhost:3005/docs/
-```
-
-Default credentials: `root` / `Root@123456`
-
----
-
-## Quick Start (individual, without Docker)
-
-```bash
-# Problem 4
-cd problem4 && npm install
-npm test       # 21 unit tests
-npm run dev    # → http://localhost:3004
-
-# Problem 5
-cd problem5 && npm install
-cp .env.example .env   # edit JWT_SECRET and ROOT_PASSWORD
-npm test       # 18 integration tests
-npm run dev    # → http://localhost:3005
-```
 
 ---
 
